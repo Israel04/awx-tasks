@@ -1,34 +1,37 @@
 ---
-- name: Tarea SCM - Instalacion del navegador Chromium (Usando SNAP)
+- name: Tarea SCM - Instalacion del navegador Chromium (SOLUCION FINAL)
   hosts: all
   gather_facts: yes
-  become: yes # NECESARIO para instalar snap
+  become: yes
 
   tasks:
-    - name: 1. Asegurar que snapd este instalado y actualizado
-      ansible.builtin.apt:
-        name: snapd
+    - name: 1. Asegurar que el repositorio 'universe' este habilitado
+      ansible.builtin.apt_repository:
+        repo: 'deb http://archive.ubuntu.com/ubuntu focal universe'
         state: present
         update_cache: yes
       when: ansible_os_family == "Debian"
 
-    - name: 2. Instalar el navegador Chromium usando el módulo snap
-      community.general.snap:
-        name: chromium
-        state: present
-        classic: yes # Usa modo clásico para instalación completa
+    - name: 2. Forzar limpieza y corrección de dependencias rotas
+      ansible.builtin.shell: apt --fix-broken install -y && apt autoclean
       when: ansible_os_family == "Debian"
-    
-    - name: 3. Verificar instalacion (Comando de shell)
-      ansible.builtin.shell: which chromium
+
+    - name: 3. Asegurar que el paquete 'chromium-browser' este instalado (Version APT)
+      ansible.builtin.apt:
+        name: chromium-browser
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: 4. Verificar la instalacion buscando el binario
+      ansible.builtin.command: dpkg -L chromium-browser
       register: verificacion_chromium
       ignore_errors: yes
-
-    - name: 4. Informar el resultado
+    
+    - name: 5. Informar el resultado de la instalacion
       ansible.builtin.debug:
         msg: |
           ==========================================================
-          Instalacion de Chromium (SNAP) finalizada en {{ inventory_hostname }}.
-          Estado: {{ 'ÉXITO' if verificacion_chromium is success else 'FALLÓ - La instalacion de paquetes no pudo completarse' }}
-          Ruta: {{ verificacion_chromium.stdout }}
+          Instalacion de Chromium finalizada en {{ inventory_hostname }}.
+          Estado: {{ 'ÉXITO' if verificacion_chromium is success else 'FALLÓ - Problema de dependencia grave en el host 10.0.2.4' }}
           ==========================================================
