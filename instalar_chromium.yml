@@ -1,5 +1,5 @@
 ---
-- name: Tarea SCM - Instalacion del navegador Chromium (SOLUCION FINAL CON CONTINGENCIA SNAP)
+- name: Tarea SCM - Instalacion del navegador Chromium (SOLUCION FINAL CON INSTALACION DE SNAPD)
   hosts: all
   gather_facts: yes
   become: yes # NECESARIO para instalar paquetes
@@ -26,11 +26,17 @@
       register: apt_result
       ignore_errors: yes # Permitimos que falle para activar la contingencia
 
-    - name: 4. [CONTINGENCIA] Instalar Chromium directamente via SNAP si la Tarea 3 fallo
+    - name: 3.5. [CONTINGENCIA] Instalar el gestor snapd si la Tarea 3 fallo
+      ansible.builtin.apt:
+        name: snapd
+        state: present
+        update_cache: yes
+      when: apt_result is failed and ansible_os_family == "Debian"
+
+    - name: 4. [CONTINGENCIA FINAL] Instalar Chromium con SNAP
       ansible.builtin.shell: snap install chromium --classic --channel=stable
       args:
-        executable: /bin/bash # Asegura que el comando se ejecute correctamente
-      # Se ejecuta si la tarea APT anterior falló
+        executable: /bin/bash
       when: apt_result is failed and ansible_os_family == "Debian"
       register: snap_result
 
@@ -44,8 +50,6 @@
         msg: |
           ==========================================================
           INSTALACIÓN FINALIZADA en {{ inventory_hostname }}.
-          Estado: 
-            - ÉXITO: {{ 'Sí' if verificacion_final is success else 'No' }}
-            - Método Usado: {{ 'APT' if apt_result is success else 'SNAP (Contingencia)' }}
-          Detalles de la Verificación: {{ verificacion_final.stdout if verificacion_final is success else 'Fallo al localizar el binario' }}
+          Estado: {{ 'ÉXITO' if verificacion_final is success else 'FALLÓ' }}
+          Ruta: {{ verificacion_final.stdout if verificacion_final is success else 'Fallo al localizar el binario. Revisar Tarea 4.' }}
           ==========================================================
