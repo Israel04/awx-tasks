@@ -1,8 +1,8 @@
 ---
-- name: Tarea SCM - Instalacion del navegador Chromium (SOLUCION FINAL)
+- name: Tarea SCM - Instalacion del navegador Chromium (SOLUCION FINAL CON CONTINGENCIA)
   hosts: all
   gather_facts: yes
-  become: yes
+  become: yes # NECESARIO para instalar paquetes
 
   tasks:
     - name: 1. Asegurar que el repositorio 'universe' este habilitado
@@ -11,27 +11,39 @@
         state: present
         update_cache: yes
       when: ansible_os_family == "Debian"
+      register: repo_result # Usamos un registro para asegurar el flujo
 
     - name: 2. Forzar limpieza y corrección de dependencias rotas
-      ansible.builtin.shell: apt --fix-broken install -y && apt autoclean
-      when: ansible_os_family == "Debian"
+      ansible.builtin.shell: apt update && apt --fix-broken install -y && apt autoclean
+      when: ansible_os_family == "Debian" and repo_result is changed # Solo si el repo cambió o queremos forzar
 
-    - name: 3. Asegurar que el paquete 'chromium-browser' este instalado (Version APT)
+    - name: 3. Intentar instalar 'chromium-browser' via APT
       ansible.builtin.apt:
         name: chromium-browser
         state: present
         update_cache: yes
       when: ansible_os_family == "Debian"
+      register: apt_result
+      ignore_errors: yes # Permitimos que falle para pasar a la contingencia
 
-    - name: 4. Verificar la instalacion buscando el binario
-      ansible.builtin.command: dpkg -L chromium-browser
-      register: verificacion_chromium
+    - name: 4. [CONTINGENCIA] Instalar Chromium directamente via SNAP si la Tarea 3 fallo
+      ansible.builtin.shell: snap install chromium
+      # Se ejecuta si la tarea anterior (APT) falló y si el host es Debian/Ubuntu
+      when: apt_result is failed and ansible_os_family == "Debian"
+      register: snap_result
+
+    - name: 5. Verificar la instalacion y registrar el binario
+      ansible.builtin.shell: which chromium
+      register: verificacion_final
       ignore_errors: yes
     
-    - name: 5. Informar el resultado de la instalacion
+    - name: 6. Informar el resultado de la instalacion
       ansible.builtin.debug:
         msg: |
           ==========================================================
-          Instalacion de Chromium finalizada en {{ inventory_hostname }}.
-          Estado: {{ 'ÉXITO' if verificacion_chromium is success else 'FALLÓ - Problema de dependencia grave en el host 10.0.2.4' }}
+          INSTALACIÓN FINALIZADA en {{ inventory_hostname }}.
+          Estado: 
+            - ÉXITO: {{ 'Sí' if verificacion_final is success else 'No' }}
+            - Método Usado: {{ 'APT' if apt_result is success else 'SNAP (Contingencia)' }}
+          Detalles de la Verificación: {{ verificacion_final.stdout if verificacion_final is success else 'Fallo al localizar el binario' }}
           ==========================================================
