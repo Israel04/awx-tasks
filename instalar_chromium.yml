@@ -1,33 +1,34 @@
 ---
-- name: Tarea SCM - Instalacion del navegador Chromium
+- name: Tarea SCM - Instalacion del navegador Chromium (Usando SNAP)
   hosts: all
   gather_facts: yes
-  become: yes # NECESARIO para que el usuario 'ansible_svc' ejecute comandos con privilegios (apt)
+  become: yes # NECESARIO para instalar snap
 
   tasks:
-    - name: 1. Limpiar y corregir dependencias rotas (Soluciona E: Unable to correct problems)
+    - name: 1. Asegurar que snapd este instalado y actualizado
       ansible.builtin.apt:
-        state: full-upgrade # Actualiza e intenta corregir dependencias y paquetes rotos
-        force_apt_get: yes  # Fuerza el uso de apt-get
-        update_cache: yes
-      when: ansible_os_family == "Debian"
-
-    - name: 2. Asegurar que el paquete 'chromium-browser' este instalado
-      ansible.builtin.apt:
-        name: chromium-browser
+        name: snapd
         state: present
         update_cache: yes
       when: ansible_os_family == "Debian"
 
-    - name: 3. Verificar la instalacion buscando el binario (dpkg)
-      ansible.builtin.command: dpkg -L chromium-browser
-      register: verificacion_chromium
-      ignore_errors: yes # Si falla la busqueda, no detiene el playbook
+    - name: 2. Instalar el navegador Chromium usando el módulo snap
+      community.general.snap:
+        name: chromium
+        state: present
+        classic: yes # Usa modo clásico para instalación completa
+      when: ansible_os_family == "Debian"
     
-    - name: 4. Informar el resultado de la instalacion
+    - name: 3. Verificar instalacion (Comando de shell)
+      ansible.builtin.shell: which chromium
+      register: verificacion_chromium
+      ignore_errors: yes
+
+    - name: 4. Informar el resultado
       ansible.builtin.debug:
         msg: |
           ==========================================================
-          Instalacion de Chromium finalizada en {{ inventory_hostname }}.
-          Estado de la Tarea: {{ 'ÉXITO' if verificacion_chromium is success else 'FALLÓ - La instalacion de paquetes no pudo completarse' }}
+          Instalacion de Chromium (SNAP) finalizada en {{ inventory_hostname }}.
+          Estado: {{ 'ÉXITO' if verificacion_chromium is success else 'FALLÓ - La instalacion de paquetes no pudo completarse' }}
+          Ruta: {{ verificacion_chromium.stdout }}
           ==========================================================
