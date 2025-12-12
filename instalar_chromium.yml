@@ -1,55 +1,46 @@
 ---
-- name: Tarea SCM - Instalacion del navegador Chromium (SOLUCION FINAL CON INSTALACION DE SNAPD)
+- name: Tarea SCM - Instalacion del navegador Chromium (SOLUCION FINAL CON PPA)
   hosts: all
   gather_facts: yes
-  become: yes # NECESARIO para instalar paquetes
+  become: yes
 
   tasks:
-    - name: 1. Asegurar que el repositorio 'universe' este habilitado
-      ansible.builtin.apt_repository:
-        repo: 'deb http://archive.ubuntu.com/ubuntu focal universe'
+    - name: 1. Asegurar la instalación de 'software-properties-common' para manejar PPA
+      ansible.builtin.apt:
+        name: software-properties-common
         state: present
         update_cache: yes
       when: ansible_os_family == "Debian"
-      register: repo_result 
 
-    - name: 2. Forzar limpieza y corrección de dependencias rotas
-      ansible.builtin.shell: apt update && apt --fix-broken install -y && apt autoclean
+    - name: 2. Añadir PPA para obtener versión de Chromium que no es SNAP
+      ansible.builtin.apt_repository:
+        repo: 'ppa:chromium-team/stable' # PPA del equipo Chromium
+        state: present
+        update_cache: yes
       when: ansible_os_family == "Debian"
+      register: ppa_result
 
-    - name: 3. Intentar instalar 'chromium-browser' via APT
+    - name: 3. Intentar instalar 'chromium-browser' via APT desde PPA
       ansible.builtin.apt:
         name: chromium-browser
         state: present
         update_cache: yes
+        force_apt_get: yes
       when: ansible_os_family == "Debian"
-      register: apt_result
-      ignore_errors: yes # Permitimos que falle para activar la contingencia
+      register: final_apt_result
 
-    - name: 3.5. [CONTINGENCIA] Instalar el gestor snapd si la Tarea 3 fallo
-      ansible.builtin.apt:
-        name: snapd
-        state: present
-        update_cache: yes
-      when: apt_result is failed and ansible_os_family == "Debian"
-
-    - name: 4. [CONTINGENCIA FINAL] Instalar Chromium con SNAP
-      ansible.builtin.shell: snap install chromium --classic --channel=stable
-      args:
-        executable: /bin/bash
-      when: apt_result is failed and ansible_os_family == "Debian"
-      register: snap_result
-
-    - name: 5. Verificar la instalacion y registrar el binario
-      ansible.builtin.shell: which chromium
+    - name: 4. Verificar la instalacion y registrar el binario
+      ansible.builtin.shell: which chromium-browser
       register: verificacion_final
       ignore_errors: yes
     
-    - name: 6. Informar el resultado de la instalacion
+    - name: 5. Informar el resultado final de la instalacion
       ansible.builtin.debug:
         msg: |
           ==========================================================
           INSTALACIÓN FINALIZADA en {{ inventory_hostname }}.
-          Estado: {{ 'ÉXITO' if verificacion_final is success else 'FALLÓ' }}
-          Ruta: {{ verificacion_final.stdout if verificacion_final is success else 'Fallo al localizar el binario. Revisar Tarea 4.' }}
+          Estado: 
+            - ÉXITO: {{ 'Sí' if verificacion_final is success else 'No' }}
+            - Método Usado: PPA/APT
+          Detalles de la Verificación: {{ verificacion_final.stdout if verificacion_final is success else 'Fallo. El host no acepta el PPA.' }}
           ==========================================================
