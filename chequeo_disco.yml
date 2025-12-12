@@ -1,0 +1,13 @@
+---
+- name: Tarea programada SCM - Chequeo de Disco
+  hosts: all
+  gather_facts: no
+
+  tasks:
+    - name: Comprobar el espacio en disco
+      command: df -h
+      register: disco_status
+
+    - name: Imprimir el resultado
+      debug:
+        msg: "El estado del disco en el host {{ inventory_hostname }} es: {{ disco_status.stdout }}"
