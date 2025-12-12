@@ -7,8 +7,8 @@
   tasks:
     - name: 1. Limpiar y corregir dependencias rotas (Soluciona E: Unable to correct problems)
       ansible.builtin.apt:
-        state: full-upgrade # Actualiza y corrige problemas en la base de datos de paquetes
-        force_apt_get: yes  # Fuerza el uso de apt-get para mayor compatibilidad
+        state: full-upgrade # Actualiza e intenta corregir dependencias y paquetes rotos
+        force_apt_get: yes  # Fuerza el uso de apt-get
         update_cache: yes
       when: ansible_os_family == "Debian"
 
@@ -22,13 +22,12 @@
     - name: 3. Verificar la instalacion buscando el binario (dpkg)
       ansible.builtin.command: dpkg -L chromium-browser
       register: verificacion_chromium
-      ignore_errors: yes # Si falla, es porque no se instaló, no un error fatal
+      ignore_errors: yes # Si falla la busqueda, no detiene el playbook
     
     - name: 4. Informar el resultado de la instalacion
       ansible.builtin.debug:
         msg: |
           ==========================================================
           Instalacion de Chromium finalizada en {{ inventory_hostname }}.
-          Estado de la Tarea: {{ 'ÉXITO' if verificacion_chromium is success else 'FALLÓ - REVISAR TAREA 2' }}
-          Ruta del binario: {{ verificacion_chromium.stdout_lines[0] if verificacion_chromium is success and verificacion_chromium.stdout_lines else 'No se pudo verificar la ruta.' }}
+          Estado de la Tarea: {{ 'ÉXITO' if verificacion_chromium is success else 'FALLÓ - La instalacion de paquetes no pudo completarse' }}
           ==========================================================
