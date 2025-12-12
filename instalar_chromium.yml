@@ -1,46 +1,41 @@
 ---
-- name: Tarea SCM - Instalacion del navegador Chromium (SOLUCION FINAL CON PPA)
+- name: Tarea SCM - Instalacion del navegador Firefox (Alternativa a Chromium)
   hosts: all
   gather_facts: yes
   become: yes
 
   tasks:
-    - name: 1. Asegurar la instalación de 'software-properties-common' para manejar PPA
+    - name: 1. Asegurar la instalación de Firefox via APT
       ansible.builtin.apt:
-        name: software-properties-common
+        name: firefox
         state: present
         update_cache: yes
       when: ansible_os_family == "Debian"
+      register: firefox_install
 
-    - name: 2. Añadir PPA para obtener versión de Chromium que no es SNAP
-      ansible.builtin.apt_repository:
-        repo: 'ppa:chromium-team/stable' # PPA del equipo Chromium
-        state: present
-        update_cache: yes
-      when: ansible_os_family == "Debian"
-      register: ppa_result
-
-    - name: 3. Intentar instalar 'chromium-browser' via APT desde PPA
+    - name: 2. Forzar limpieza y corrección de dependencias rotas
+      ansible.builtin.shell: apt --fix-broken install -y && apt autoclean
+      when: ansible_os_family == "Debian" and firefox_install is failed
+      
+    - name: 3. Reintentar la instalación de Firefox si falló la limpieza
       ansible.builtin.apt:
-        name: chromium-browser
+        name: firefox
         state: present
         update_cache: yes
-        force_apt_get: yes
-      when: ansible_os_family == "Debian"
-      register: final_apt_result
+      when: ansible_os_family == "Debian" and firefox_install is failed
+      register: firefox_install_retry
 
     - name: 4. Verificar la instalacion y registrar el binario
-      ansible.builtin.shell: which chromium-browser
+      ansible.builtin.shell: which firefox
       register: verificacion_final
       ignore_errors: yes
     
-    - name: 5. Informar el resultado final de la instalacion
+    - name: 5. Informar el resultado final
       ansible.builtin.debug:
         msg: |
           ==========================================================
           INSTALACIÓN FINALIZADA en {{ inventory_hostname }}.
-          Estado: 
-            - ÉXITO: {{ 'Sí' if verificacion_final is success else 'No' }}
-            - Método Usado: PPA/APT
-          Detalles de la Verificación: {{ verificacion_final.stdout if verificacion_final is success else 'Fallo. El host no acepta el PPA.' }}
+          Navegador Instalado: Firefox
+          Estado: {{ 'ÉXITO' if verificacion_final is success else 'FALLÓ' }}
+          Detalles: {{ verificacion_final.stdout if verificacion_final is success else 'Fallo al localizar el binario de Firefox.' }}
           ==========================================================
