@@ -2,26 +2,33 @@
 - name: Tarea SCM - Instalacion del navegador Chromium
   hosts: all
   gather_facts: yes
-  become: yes  # ¡NECESARIO para ejecutar apt (sudo)!
+  become: yes # NECESARIO para que el usuario 'ansible_svc' ejecute comandos con privilegios (apt)
 
   tasks:
-    - name: Asegurar que el paquete 'chromium-browser' este instalado
+    - name: 1. Limpiar y corregir dependencias rotas (Soluciona E: Unable to correct problems)
+      ansible.builtin.apt:
+        state: full-upgrade # Actualiza y corrige problemas en la base de datos de paquetes
+        force_apt_get: yes  # Fuerza el uso de apt-get para mayor compatibilidad
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: 2. Asegurar que el paquete 'chromium-browser' este instalado
       ansible.builtin.apt:
         name: chromium-browser
         state: present
         update_cache: yes
-      # Esta condicion es una buena practica para asegurar que solo se ejecute
-      # en sistemas Debian/Ubuntu/Zorin
       when: ansible_os_family == "Debian"
 
-    - name: Verificar la instalacion buscando el binario
+    - name: 3. Verificar la instalacion buscando el binario (dpkg)
       ansible.builtin.command: dpkg -L chromium-browser
       register: verificacion_chromium
       ignore_errors: yes # Si falla, es porque no se instaló, no un error fatal
-
-    - name: Informar el resultado de la instalacion
+    
+    - name: 4. Informar el resultado de la instalacion
       ansible.builtin.debug:
         msg: |
-          Instalacion finalizada en {{ inventory_hostname }}.
-          Estado: {{ 'ÉXITO' if verificacion_chromium is success else 'FALLÓ' }}
-          Ruta del binario: {{ verificacion_chromium.stdout_lines[0] if verificacion_chromium is success and verificacion_chromium.stdout_lines else 'No encontrado.' }}
+          ==========================================================
+          Instalacion de Chromium finalizada en {{ inventory_hostname }}.
+          Estado de la Tarea: {{ 'ÉXITO' if verificacion_chromium is success else 'FALLÓ - REVISAR TAREA 2' }}
+          Ruta del binario: {{ verificacion_chromium.stdout_lines[0] if verificacion_chromium is success and verificacion_chromium.stdout_lines else 'No se pudo verificar la ruta.' }}
+          ==========================================================
