@@ -1,5 +1,5 @@
 ---
-- name: Tarea SCM - Instalacion del navegador Chromium (SOLUCION FINAL CON CONTINGENCIA)
+- name: Tarea SCM - Instalacion del navegador Chromium (SOLUCION FINAL CON CONTINGENCIA SNAP)
   hosts: all
   gather_facts: yes
   become: yes # NECESARIO para instalar paquetes
@@ -11,11 +11,11 @@
         state: present
         update_cache: yes
       when: ansible_os_family == "Debian"
-      register: repo_result # Usamos un registro para asegurar el flujo
+      register: repo_result 
 
     - name: 2. Forzar limpieza y corrección de dependencias rotas
       ansible.builtin.shell: apt update && apt --fix-broken install -y && apt autoclean
-      when: ansible_os_family == "Debian" and repo_result is changed # Solo si el repo cambió o queremos forzar
+      when: ansible_os_family == "Debian"
 
     - name: 3. Intentar instalar 'chromium-browser' via APT
       ansible.builtin.apt:
@@ -24,11 +24,13 @@
         update_cache: yes
       when: ansible_os_family == "Debian"
       register: apt_result
-      ignore_errors: yes # Permitimos que falle para pasar a la contingencia
+      ignore_errors: yes # Permitimos que falle para activar la contingencia
 
     - name: 4. [CONTINGENCIA] Instalar Chromium directamente via SNAP si la Tarea 3 fallo
-      ansible.builtin.shell: snap install chromium
-      # Se ejecuta si la tarea anterior (APT) falló y si el host es Debian/Ubuntu
+      ansible.builtin.shell: snap install chromium --classic --channel=stable
+      args:
+        executable: /bin/bash # Asegura que el comando se ejecute correctamente
+      # Se ejecuta si la tarea APT anterior falló
       when: apt_result is failed and ansible_os_family == "Debian"
       register: snap_result
 
