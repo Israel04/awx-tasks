@@ -1,41 +1,28 @@
 ---
-- name: Tarea SCM - Instalacion del navegador Firefox (Alternativa a Chromium)
+- name: Tarea SCM - Instalacion de la utilidad 7zip (p7zip-full)
   hosts: all
   gather_facts: yes
-  become: yes
+  become: yes # Necesario para usar el gestor de paquetes apt
 
   tasks:
-    - name: 1. Asegurar la instalación de Firefox via APT
+    - name: 1. Asegurar la instalacion del paquete 'p7zip-full'
       ansible.builtin.apt:
-        name: firefox
+        name: p7zip-full
         state: present
         update_cache: yes
       when: ansible_os_family == "Debian"
-      register: firefox_install
+      register: install_result
 
-    - name: 2. Forzar limpieza y corrección de dependencias rotas
-      ansible.builtin.shell: apt --fix-broken install -y && apt autoclean
-      when: ansible_os_family == "Debian" and firefox_install is failed
-      
-    - name: 3. Reintentar la instalación de Firefox si falló la limpieza
-      ansible.builtin.apt:
-        name: firefox
-        state: present
-        update_cache: yes
-      when: ansible_os_family == "Debian" and firefox_install is failed
-      register: firefox_install_retry
-
-    - name: 4. Verificar la instalacion y registrar el binario
-      ansible.builtin.shell: which firefox
-      register: verificacion_final
+    - name: 2. Verificar la instalacion buscando el binario '7z'
+      ansible.builtin.shell: which 7z
+      register: verificacion_7z
       ignore_errors: yes
     
-    - name: 5. Informar el resultado final
+    - name: 3. Informar el resultado de la instalacion
       ansible.builtin.debug:
         msg: |
           ==========================================================
-          INSTALACIÓN FINALIZADA en {{ inventory_hostname }}.
-          Navegador Instalado: Firefox
-          Estado: {{ 'ÉXITO' if verificacion_final is success else 'FALLÓ' }}
-          Detalles: {{ verificacion_final.stdout if verificacion_final is success else 'Fallo al localizar el binario de Firefox.' }}
+          INSTALACIÓN DE 7-Zip (p7zip-full) en {{ inventory_hostname }}.
+          Estado: {{ 'ÉXITO' if verificacion_7z is success else 'FALLÓ' }}
+          Detalles: {{ verificacion_7z.stdout if verificacion_7z is success else 'El binario 7z no se encontró. Revisar Tarea 1.' }}
           ==========================================================
